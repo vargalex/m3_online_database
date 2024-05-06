@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<addon id="plugin.video.m3_online_database" name="M3 Online (Adatbázis)" version="1.0.0" provider-name="heg, vargalex">
+    <requires>
+        <import addon="script.module.beautifulsoup4" version="4.6.2"/>
+        <import addon="script.module.requests" version="2.22.0"/>
+        <import addon="script.module.resolveurl" version="5.1.00"/>
+        <import addon="xbmc.python" version="3.0.0"/>
+        <import addon="script.module.inputstreamhelper" version="0.4.3"/>
+    </requires>
+    <extension point="xbmc.python.pluginsource" library="default.py">
+        <provides>video</provides>
+    </extension>
+    <extension point="xbmc.addon.metadata">
+        <summary lang="en">M3 Online (Adatbázis)</summary>
+        <description lang="en">Nézd vissza a Nemzeti Archívum adásait a naponta frissülő több mint 15000-es adatbázisból!
+        Köszönet Smithy fórumtársnak az adatbázisért!</description>
+        <language>hu</language>
+        <platform>all</platform>
+        <news> 
+            1.0.0 - Első verzió
+        </news>
+        <assets>
+            <icon>icon.png</icon>
+            <fanart></fanart>
+            <screenshot>resources/screenshots/screenshot-1.jpg</screenshot>
+            <screenshot>resources/screenshots/screenshot-2.jpg</screenshot>
+        </assets>
+    </extension>
+</addon>
