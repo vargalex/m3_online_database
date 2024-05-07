@@ -70,13 +70,14 @@ class navigator:
                 pass
         self.base_path = py2_decode(translatePath(xbmcaddon.Addon().getAddonInfo('profile')))
         self.searchFileName = os.path.join(self.base_path, "search.history")
+        self.pageSize = int(addon.getSetting("pageSize"))
 
     def root(self):
-        self.addDirectoryItem("M3 Online (Adatbázis)", f"get_database", '', 'DefaultFolder.png')
+        self.addDirectoryItem("M3 Online (Adatbázis)", f"get_database&page=0", '', 'DefaultFolder.png')
         self.addDirectoryItem("Keresés", f"search", '', 'DefaultFolder.png')
         self.endDirectory()
 
-    def GetDatabase(self, program_id, data_released, data_title, data_extra, data_image_link, year, duration, short_description):
+    def GetDatabase(self, page):
 
         import urllib.request
         import gzip
@@ -118,7 +119,7 @@ class navigator:
                     return True
         
             return False
-        
+
         refresh_time = datetime.strptime("07:35:00", "%H:%M:%S").time()
         
         file_paths = {
@@ -187,8 +188,8 @@ class navigator:
             with open(file_paths['json'], 'r', encoding='utf-8') as json_file:
                 data_list = json.load(json_file)
         
-        results = []
-        for data in data_list:
+        for idx in range(1 + page * self.pageSize, min((page +1 ) * (self.pageSize), len(data_list)) + 1):
+            data = data_list[idx]
             episode = data.get('episode')
             sec_title = data.get('title')
             series_title = data.get('seriesId')
@@ -221,49 +222,27 @@ class navigator:
             else:
                 new_title = " - ".join([sec_title])
         
-            results.append({'program_id': data['program_id'],
-                            'title': new_title,
-                            'extra_title': extra_title,
-                            'subtitle': subtitle,
-                            'episode': int(episode),
-                            'episodes': episodes,
-                            'seriesId': series_title,
-                            'quality': quality,
-                            'year': data.get('year'),
-                            'duration': data['duration'],
-                            'short_description': short_description,
-                            'released': data.get('released'),
-                            'image_link': try_image
-                            })
-        
-        is_first_line = True
-        
-        for idx, data in enumerate(results, start=1):
-            if is_first_line:
-                is_first_line = False
-                continue
-            
-            
-            if data['extra_title'] != "(0/0)":
+            if 'extra_title' != "(0/0)":
                 
-                picked_info = f'extr_picked&program_id={data["program_id"]}&data_released={data["released"]}&data_title={data["title"]}&data_extra={data["extra_title"]}&data_image_link={data["image_link"]}&year={data["year"]}&duration={data["duration"]}&short_description={data["short_description"]}'
+                picked_info = f'extr_picked&program_id={data["program_id"]}&data_released={data["released"]}&data_title={new_title}&data_extra={extra_title}&data_image_link={try_image}&year={data["year"]}&duration={data["duration"]}&short_description={short_description}'
                 
-                meta_info = {'title': f'{data["title"]} - {data["extra_title"]}', 'plot': f'{data["released"]}\nid: {data["program_id"]}\n{data["year"]}\n{data["short_description"]}'}
+                meta_info = {'title': f'{new_title} - {extra_title}', 'plot': f'{data["released"]}\nid: {data["program_id"]}\n{data["year"]}\n{short_description}'}
                 
-                self.addDirectoryItem(f'[B]{data["released"]} - {data["title"]} - {data["extra_title"]}[/B]', 
+                self.addDirectoryItem(f'[B]{data["released"]} - {new_title} - {extra_title}[/B]', 
                                       f'{picked_info}', 
-                                      f'{data["image_link"]}', 'DefaultMovies.png', isFolder=True, meta=meta_info)
+                                      f'{try_image}', 'DefaultMovies.png', isFolder=True, meta=meta_info)
 
             else:
                 
-                picked_info = f'extr_picked&program_id={data["program_id"]}&data_released={data["released"]}&data_title={data["title"]}&data_extra={data["extra_title"]}&data_image_link={data["image_link"]}&year={data["year"]}&duration={data["duration"]}&short_description={data["short_description"]}'
+                picked_info = f'extr_picked&program_id={data["program_id"]}&data_released={data["released"]}&data_title={new_title}&data_extra={extra_title}&data_image_link={try_image}&year={data["year"]}&duration={data["duration"]}&short_description={short_description}'
                 
-                meta_info = {'title': f'{data["title"]}', 'plot': f'{data["released"]}\nid: {data["program_id"]}\n{data["year"]}\n{data["short_description"]}'}
+                meta_info = {'title': f'{new_title}', 'plot': f'{data["released"]}\nid: {data["program_id"]}\n{data["year"]}\n{short_description}'}
                 
-                self.addDirectoryItem(f'[B]{data["released"]} - {data["title"]}[/B]', 
+                self.addDirectoryItem(f'[B]{data["released"]} - {new_title}[/B]', 
                                       f'{picked_info}', 
-                                      f'{data["image_link"]}', 'DefaultMovies.png', isFolder=True, meta=meta_info)
-        
+                                      f'{try_image}', 'DefaultMovies.png', isFolder=True, meta=meta_info)
+        if page * (self.pageSize + 1) < len(data_list):
+            self.addDirectoryItem(f"[I]Következő oldal ({page + 2} / {-(-1*len(data_list) // self.pageSize)}) >>>[/I]", f"get_database&page={page + 1}", '', 'DefaultMovies.png', isFolder=True)
         self.endDirectory('series')
 
     def SearchDatabase(self, program_id, data_released, data_title, data_extra, data_image_link, year, duration, short_description, search_this):
@@ -308,7 +287,7 @@ class navigator:
                     return True
         
             return False
-        
+
         refresh_time = datetime.strptime("07:35:00", "%H:%M:%S").time()
         
         file_paths = {

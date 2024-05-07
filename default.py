@@ -29,7 +29,7 @@ params = dict(parse_qsl(sys.argv[2].replace('?', '')))
 
 action = params.get('action')
 url = params.get('url')
-
+page = 0 if not params.get('page') else int(params.get('page'))
 
 program_id = params.get('program_id')
 data_released = params.get('data_released')
@@ -50,7 +50,7 @@ if action is None:
     navigator.navigator().root()
 
 elif action == 'get_database':
-    navigator.navigator().GetDatabase(program_id, data_released, data_title, data_extra, data_image_link, year, duration, short_description)
+    navigator.navigator().GetDatabase(page)
 
 elif action == 'search_database':
     navigator.navigator().SearchDatabase(program_id, data_released, data_title, data_extra, data_image_link, year, duration, short_description, search_this)
