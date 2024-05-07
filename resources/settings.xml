@@ -2,5 +2,6 @@
 <settings>
     <category label="Lejátszás">
     	<setting id="showSubtitle" type="bool" label="Feliratok automatikus megjelenítése" default="false"/>
+        <setting id="pageSize" type="number" label="Egy oldalon megjelenő találatok száma" default="50"/>
     </category>
 </settings>
