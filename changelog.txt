@@ -1,3 +1,6 @@
+[B]1.0.2[/B]
+- Közvetlen CSV forrás használata JSON helyett
+
 [B]1.0.1[/B]
 - Lapozás megvalósításának megkezdése
 

@@ -18,7 +18,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 '''
 
-import os, sys, re, xbmc, xbmcgui, xbmcplugin, xbmcaddon, xbmcvfs, locale, base64
+import os, sys, re, xbmc, xbmcgui, xbmcplugin, xbmcaddon, xbmcvfs, locale, base64, csv
 from bs4 import BeautifulSoup
 import requests
 import urllib.parse
@@ -59,6 +59,20 @@ else:
     from urlparse import urlparse
     from urllib import quote_plus
 
+csv_data_mapping = {
+    'program_id': 0,
+    'title': 1,
+    'subtitle': 2,
+    'episode': 3,
+    'episodes': 4,
+    'seriesId': 5,
+    'quality': 6,
+    'year': 7,
+    'duration': 8,
+    'short_description': 9,
+    'released': 10
+}
+
 class navigator:
     def __init__(self):
         try:
@@ -71,26 +85,23 @@ class navigator:
         self.base_path = py2_decode(translatePath(xbmcaddon.Addon().getAddonInfo('profile')))
         self.searchFileName = os.path.join(self.base_path, "search.history")
         self.pageSize = int(addon.getSetting("pageSize"))
+        self.file_paths = {
+            'gz': None,
+            'csv': None,
+        }
+        self.refresh_database()
 
-    def root(self):
-        self.addDirectoryItem("M3 Online (Adatbázis)", f"get_database&page=0", '', 'DefaultFolder.png')
-        self.addDirectoryItem("Keresés", f"search", '', 'DefaultFolder.png')
-        self.endDirectory()
-
-    def GetDatabase(self, page):
-
+    def refresh_database(self):
         import urllib.request
         import gzip
         import os
-        import csv
-        import json
         from datetime import datetime, timedelta
-        
+
         gz_url = "https://m3.devs.space/public/m3-db.csv.gz"
 
         def remove_old_files(addon_data_path, new_filenames):
             for filename in os.listdir(addon_data_path):
-                if filename.endswith(".json") or filename.endswith(".csv") or filename.endswith(".csv.gz"):
+                if filename.endswith(".csv") or filename.endswith(".csv.gz"):
                     if filename not in new_filenames:
                         file_path = os.path.join(addon_data_path, filename)
                         os.remove(file_path)
@@ -108,11 +119,10 @@ class navigator:
             return datetime.fromtimestamp(unix_timestamp)
         
         def needs_refresh(file_paths, refresh_time):
-            if 'json' not in file_paths or not file_paths['json']:
+            if "csv" not in file_paths or not file_paths["csv"]:
                 return True
-
-            json_modification_time = os.path.getmtime(file_paths['json'])
-            file_time = datetime.fromtimestamp(json_modification_time)
+            csv_modification_time = os.path.getmtime(file_paths['csv'])
+            file_time = datetime.fromtimestamp(csv_modification_time)
 
             if datetime.now().time() > refresh_time:
                 if file_time.date() < datetime.now().date():
@@ -120,14 +130,8 @@ class navigator:
         
             return False
 
-        refresh_time = datetime.strptime("07:35:00", "%H:%M:%S").time()
-        
-        file_paths = {
-            'gz': None,
-            'csv': None,
-            'json': None
-        }
-        
+        refresh_time = datetime(2024, 5, 8, 7, 35).time()
+
         addon = xbmcaddon.Addon('plugin.video.m3_online_database')
         addon_data_path = xbmcvfs.translatePath('special://userdata/addon_data/plugin.video.m3_online_database')
         
@@ -135,20 +139,17 @@ class navigator:
             os.makedirs(addon_data_path)
         
         for filename in os.listdir(addon_data_path):
-            if filename.endswith(".json"):
-                file_paths['json'] = os.path.join(addon_data_path, filename)
-            elif filename.endswith(".csv"):
-                file_paths['csv'] = os.path.join(addon_data_path, filename)
+            if filename.endswith(".csv"):
+                self.file_paths['csv'] = os.path.join(addon_data_path, filename)
             elif filename.endswith(".csv.gz"):
-                file_paths['gz'] = os.path.join(addon_data_path, filename)
+                self.file_paths['gz'] = os.path.join(addon_data_path, filename)
         
-        if needs_refresh(file_paths, refresh_time):
+        if needs_refresh(self.file_paths, refresh_time):
             unix_timestamp = int(datetime.timestamp(datetime.now()))
             file_path_gz = os.path.join(addon_data_path, f"{unix_timestamp}_m3-db-daily.csv.gz")
             file_path_csv = os.path.join(addon_data_path, f"{unix_timestamp}_m3-db-daily.csv")
-            file_path_json = os.path.join(addon_data_path, f"{unix_timestamp}_m3-db-daily.json")
         
-            remove_old_files(addon_data_path, [file_path_gz, file_path_csv, file_path_json])
+            remove_old_files(addon_data_path, [file_path_gz, file_path_csv])
         
             try:
                 urllib.request.urlretrieve(gz_url, file_path_gz)
@@ -158,50 +159,37 @@ class navigator:
                         f_out.write(f_in.read())
             except Exception as e:
                 xbmc.log(f"{base_log_info} | Failed to download or extract CSV file: {str(e)}", xbmc.LOGERROR)
-        
-            data_list = []
-        
-            with open(file_path_csv, 'r', encoding='utf-8') as file:
-                csv_reader = csv.reader(file, delimiter=';')
-        
-                for row in csv_reader:
-                    data_dict = {
-                        'program_id': row[0],
-                        'title': row[1],
-                        'subtitle': row[2],
-                        'episode': row[3],
-                        'episodes': row[4],
-                        'seriesId': row[5],
-                        'quality': row[6],
-                        'year': row[7],
-                        'duration': row[8],
-                        'short_description': row[9],
-                        'released': row[10]
-                    }
-                    data_list.append(data_dict)
-        
-            with open(file_path_json, 'w', encoding='utf-8') as json_file:
-                json.dump(data_list, json_file, ensure_ascii=False)
-        else:
-            xbmc.log(f"{base_log_info} | Meglévő json betöltve.", xbmc.LOGINFO)
-        
-            with open(file_paths['json'], 'r', encoding='utf-8') as json_file:
-                data_list = json.load(json_file)
-        
-        for idx in range(1 + page * self.pageSize, min((page +1 ) * (self.pageSize) + 1, len(data_list))):
-            data = data_list[idx]
-            episode = data.get('episode')
-            sec_title = data.get('title')
-            series_title = data.get('seriesId')
-            episodes = data.get('episodes')
-            subtitle = data.get('subtitle')
-            short_description = data.get('short_description')
-            relesed_date = data.get('released')
-            year = data.get('year')
-        
-            try_image = f'{base_url}/images/m3/{data["program_id"]}'
+            self.file_paths['gz'] = file_path_gz
+            self.file_paths['csv'] = file_path_csv
+
+    def root(self):
+        self.addDirectoryItem("M3 Online (Adatbázis)", f"get_database&page=0", '', 'DefaultFolder.png')
+        self.addDirectoryItem("Keresés", f"search", '', 'DefaultFolder.png')
+        self.endDirectory()
+
+    def GetDatabase(self, page):
+
+        xbmc.log(f"{base_log_info} | Meglévő csv betöltése.", xbmc.LOGINFO)
+        file = open(self.file_paths['csv'], 'r', encoding='utf-8')
+        csvData = list(csv.reader(file, delimiter=';'))
+        file.close()
+
+        for idx in range(1 + page * self.pageSize, min((page +1 ) * (self.pageSize) + 1, len(csvData))):
+            data = csvData[idx]
+            program_id = data[csv_data_mapping['program_id']]
+            episode = data[csv_data_mapping['episode']]
+            sec_title = data[csv_data_mapping['title']]
+            series_title = data[csv_data_mapping['seriesId']]
+            episodes = data[csv_data_mapping['episodes']]
+            subtitle = data[csv_data_mapping['subtitle']]
+            short_description = data[csv_data_mapping['short_description']]
+            released_date = data[csv_data_mapping['released']]
+            year = data[csv_data_mapping['year']]
+            duration = data[csv_data_mapping['duration']]
+
+            try_image = f'{base_url}/images/m3/{data[csv_data_mapping["program_id"]]}'
             
-            quality = data.get('quality')
+            quality = data[csv_data_mapping['quality']]
             if quality == 'UHD':
                 quality = '4K'
         
@@ -222,156 +210,54 @@ class navigator:
             else:
                 new_title = " - ".join([sec_title])
         
-            if 'extra_title' != "(0/0)":
+            if extra_title != "(0/0)":
                 
-                picked_info = f'extr_picked&program_id={data["program_id"]}&data_released={data["released"]}&data_title={new_title}&data_extra={extra_title}&data_image_link={try_image}&year={data["year"]}&duration={data["duration"]}&short_description={short_description}'
+                picked_info = f'extr_picked&program_id={program_id}&data_released={released_date}&data_title={new_title}&data_extra={extra_title}&data_image_link={try_image}&year={year}&duration={duration}&short_description={short_description}'
                 
-                meta_info = {'title': f'{new_title} - {extra_title}', 'plot': f'{data["released"]}\nid: {data["program_id"]}\n{data["year"]}\n{short_description}'}
+                meta_info = {'title': f'{new_title} - {extra_title}', 'plot': f'{released_date}\nid: {program_id}\n{year}\n{short_description}'}
                 
-                self.addDirectoryItem(f'[B]{data["released"]} - {new_title} - {extra_title}[/B]', 
+                self.addDirectoryItem(f'[B]{released_date} - {new_title} - {extra_title}[/B]', 
                                       f'{picked_info}', 
                                       f'{try_image}', 'DefaultMovies.png', isFolder=True, meta=meta_info)
 
             else:
                 
-                picked_info = f'extr_picked&program_id={data["program_id"]}&data_released={data["released"]}&data_title={new_title}&data_extra={extra_title}&data_image_link={try_image}&year={data["year"]}&duration={data["duration"]}&short_description={short_description}'
+                picked_info = f'extr_picked&program_id={program_id}&data_released={released_date}&data_title={new_title}&data_extra={extra_title}&data_image_link={try_image}&year={year}&duration={duration}&short_description={short_description}'
                 
-                meta_info = {'title': f'{new_title}', 'plot': f'{data["released"]}\nid: {data["program_id"]}\n{data["year"]}\n{short_description}'}
+                meta_info = {'title': f'{new_title}', 'plot': f'{released_date}\nid: {program_id}\n{year}\n{short_description}'}
                 
-                self.addDirectoryItem(f'[B]{data["released"]} - {new_title}[/B]', 
+                self.addDirectoryItem(f'[B]{released_date} - {new_title}[/B]', 
                                       f'{picked_info}', 
                                       f'{try_image}', 'DefaultMovies.png', isFolder=True, meta=meta_info)
-        if page * (self.pageSize + 1) < len(data_list):
-            self.addDirectoryItem(f"[I]Következő oldal ({page + 2} / {-(-1*len(data_list) // self.pageSize)}) >>>[/I]", f"get_database&page={page + 1}", '', 'DefaultMovies.png', isFolder=True)
+        if (page + 1) * (self.pageSize) < len(csvData):
+            self.addDirectoryItem(f"[I]Következő oldal ({page + 2} / {-(-1*len(csvData) // self.pageSize)}) >>>[/I]", f"get_database&page={page + 1}", '', 'DefaultMovies.png', isFolder=True)
         self.endDirectory('series')
 
     def SearchDatabase(self, program_id, data_released, data_title, data_extra, data_image_link, year, duration, short_description, search_this):
 
-        import urllib.request
-        import gzip
-        import os
-        import csv
-        import json
-        from datetime import datetime, timedelta
-        
-        gz_url = "https://m3.devs.space/public/m3-db.csv.gz"
-        
-        def remove_old_files(addon_data_path, new_filenames):
-            for filename in os.listdir(addon_data_path):
-                if filename.endswith(".json") or filename.endswith(".csv") or filename.endswith(".csv.gz"):
-                    if filename not in new_filenames:
-                        file_path = os.path.join(addon_data_path, filename)
-                        os.remove(file_path)
-        
-        def get_unix_from_filename(filename):
-            try:
-                unix_part = filename.split("_")[0]
-                unix_timestamp = int(unix_part)
-                return unix_timestamp
-            except (ValueError, IndexError):
-                xbmc.log(f"{base_log_info} | Error converting filename to UNIX timestamp: {filename}", xbmc.LOGERROR)
-                return 0
-        
-        def get_time_from_unix(unix_timestamp):
-            return datetime.fromtimestamp(unix_timestamp)
-        
-        def needs_refresh(file_paths, refresh_time):
-            if 'json' not in file_paths or not file_paths['json']:
-                return True
+        xbmc.log(f"{base_log_info} | Meglévő csv betöltése.", xbmc.LOGINFO)
+        file = open(self.file_paths['csv'], 'r', encoding='utf-8')
+        csvData = list(csv.reader(file, delimiter=';'))
+        file.close()
 
-            json_modification_time = os.path.getmtime(file_paths['json'])
-            file_time = datetime.fromtimestamp(json_modification_time)
-
-            if datetime.now().time() > refresh_time:
-                if file_time.date() < datetime.now().date():
-                    return True
-        
-            return False
-
-        refresh_time = datetime.strptime("07:35:00", "%H:%M:%S").time()
-        
-        file_paths = {
-            'gz': None,
-            'csv': None,
-            'json': None
-        }
-        
-        addon = xbmcaddon.Addon('plugin.video.m3_online_database')
-        addon_data_path = xbmcvfs.translatePath('special://userdata/addon_data/plugin.video.m3_online_database')
-        
-        if not os.path.exists(addon_data_path):
-            os.makedirs(addon_data_path)
-        
-        for filename in os.listdir(addon_data_path):
-            if filename.endswith(".json"):
-                file_paths['json'] = os.path.join(addon_data_path, filename)
-            elif filename.endswith(".csv"):
-                file_paths['csv'] = os.path.join(addon_data_path, filename)
-            elif filename.endswith(".csv.gz"):
-                file_paths['gz'] = os.path.join(addon_data_path, filename)
-        
-        if needs_refresh(file_paths, refresh_time):
-            unix_timestamp = int(datetime.timestamp(datetime.now()))
-            file_path_gz = os.path.join(addon_data_path, f"{unix_timestamp}_m3-db-daily.csv.gz")
-            file_path_csv = os.path.join(addon_data_path, f"{unix_timestamp}_m3-db-daily.csv")
-            file_path_json = os.path.join(addon_data_path, f"{unix_timestamp}_m3-db-daily.json")
-        
-            remove_old_files(addon_data_path, [file_path_gz, file_path_csv, file_path_json])
-        
-            try:
-                urllib.request.urlretrieve(gz_url, file_path_gz)
-        
-                with gzip.open(file_path_gz, 'rb') as f_in:
-                    with open(file_path_csv, 'wb') as f_out:
-                        f_out.write(f_in.read())
-            except Exception as e:
-                xbmc.log(f"{base_log_info} | Failed to download or extract CSV file: {str(e)}", xbmc.LOGERROR)
-        
-            data_list = []
-        
-            with open(file_path_csv, 'r', encoding='utf-8') as file:
-                csv_reader = csv.reader(file, delimiter=';')
-        
-                for row in csv_reader:
-                    data_dict = {
-                        'program_id': row[0],
-                        'title': row[1],
-                        'subtitle': row[2],
-                        'episode': row[3],
-                        'episodes': row[4],
-                        'seriesId': row[5],
-                        'quality': row[6],
-                        'year': row[7],
-                        'duration': row[8],
-                        'short_description': row[9],
-                        'released': row[10]
-                    }
-                    data_list.append(data_dict)
-        
-            with open(file_path_json, 'w', encoding='utf-8') as json_file:
-                json.dump(data_list, json_file, ensure_ascii=False)
-        else:
-            xbmc.log(f"{base_log_info} | Meglévő json betöltve.", xbmc.LOGINFO)
-        
-            with open(file_paths['json'], 'r', encoding='utf-8') as json_file:
-                data_list = json.load(json_file)
-        
         search_word = search_this
-        
         results = []
-        for data in data_list:
-            episode = data.get('episode')
-            sec_title = data.get('title')
-            series_title = data.get('seriesId')
-            episodes = data.get('episodes')
-            subtitle = data.get('subtitle')
-            short_description = data.get('short_description')
-            relesed_date = data.get('released')
-            year = data.get('year')
-        
-            try_image = f'{base_url}/images/m3/{data["program_id"]}'
+
+        for data in csvData:
+            program_id = data[csv_data_mapping['program_id']]
+            episode = data[csv_data_mapping['episode']]
+            sec_title = data[csv_data_mapping['title']]
+            series_title = data[csv_data_mapping['seriesId']]
+            episodes = data[csv_data_mapping['episodes']]
+            subtitle = data[csv_data_mapping['subtitle']]
+            short_description = data[csv_data_mapping['short_description']]
+            released_date = data[csv_data_mapping['released']]
+            year = data[csv_data_mapping['year']]
+            duration = data[csv_data_mapping['duration']]
+
+            try_image = f'{base_url}/images/m3/{data[csv_data_mapping["program_id"]]}'
             
-            quality = data.get('quality')
+            quality = data[csv_data_mapping['quality']]
             if quality == 'UHD':
                 quality = '4K'
         
@@ -393,13 +279,13 @@ class navigator:
                 new_title = " - ".join([sec_title])
         
             if (
-                search_word.lower() in data.get('program_id', '').lower() or
-                search_word.lower() in data.get('title', '').lower() or
-                search_word.lower() in data.get('subtitle', '').lower() or
-                search_word.lower() in data.get('seriesId', '').lower()
+                search_word.lower() in program_id.lower() or
+                search_word.lower() in sec_title.lower() or
+                search_word.lower() in subtitle.lower() or
+                search_word.lower() in series_title.lower()
             ):        
         
-                results.append({'program_id': data['program_id'],
+                results.append({'program_id': program_id,
                                 'title': new_title,
                                 'extra_title': extra_title,
                                 'subtitle': subtitle,
@@ -407,10 +293,10 @@ class navigator:
                                 'episodes': episodes,
                                 'seriesId': series_title,
                                 'quality': quality,
-                                'year': data.get('year'),
-                                'duration': data['duration'],
+                                'year': year,
+                                'duration': duration,
                                 'short_description': short_description,
-                                'released': data.get('released'),
+                                'released': released_date,
                                 'image_link': try_image
                                 })
         
