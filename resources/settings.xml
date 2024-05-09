@@ -3,5 +3,7 @@
     <category label="Lejátszás">
     	<setting id="showSubtitle" type="bool" label="Feliratok automatikus megjelenítése" default="false"/>
         <setting id="pageSize" type="number" label="Egy oldalon megjelenő találatok száma" default="50"/>
+        <setting id="checkDatabase" type="number" label="Adatbázis ellenőrzése (óránként)" default="6"/>
+        <setting id="clearDatabase" type="action" label="[B][COLOR red]Helyi adatbázis törlése (kényszerített újraépítés)[/COLOR][/B]" option="close" action="RunPlugin(plugin://plugin.video.m3_online_database/?action=cleardatabase)"/>
     </category>
 </settings>

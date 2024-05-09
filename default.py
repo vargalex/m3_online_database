@@ -41,7 +41,7 @@ year = params.get('year')
 duration = params.get('duration')
 short_description = params.get('short_description')
 
-search_this = params.get('search_this')
+search = params.get('search')
 
 hasSubtitle = params.get('hasSubtitle')
 
@@ -49,19 +49,14 @@ hasSubtitle = params.get('hasSubtitle')
 if action is None:
     navigator.navigator().root()
 
-elif action == 'get_database':
-    navigator.navigator().GetDatabase(page)
-
-elif action == 'search_database':
-    navigator.navigator().SearchDatabase(program_id, data_released, data_title, data_extra, data_image_link, year, duration, short_description, search_this)
+elif action == 'getitems':
+    navigator.navigator().getItems(page, search)
 
 elif action == 'extr_picked':
     navigator.navigator().ExtrPicked(program_id, data_released, data_title, data_extra, data_image_link, year, duration, short_description, url, hasSubtitle)
 
-
 elif action == 'play_movie':
     navigator.navigator().playMovie(url, program_id, hasSubtitle)
-
 
 elif action == 'search':
     navigator.navigator().getSearches()
@@ -70,4 +65,7 @@ elif action == 'newsearch':
     navigator.navigator().doSearch()
 
 elif action == 'deletesearchhistory':
-    navigator.navigator().deleteSearchHistory()    
+    navigator.navigator().deleteSearchHistory()
+
+elif action == 'cleardatabase':
+    navigator.navigator().clear_database()
