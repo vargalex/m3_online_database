@@ -1,8 +1,11 @@
+[B]1.0.4[/B]
+- link javítása
+
 [B]1.0.3[/B]
 - Áttérés SQLite adatbázis használatára
-- Lapozás a keresésben[
+- Lapozás a keresésben
 
-B]1.0.2[/B]
+[B]1.0.2[/B]
 - Közvetlen CSV forrás használata JSON helyett
 
 [B]1.0.1[/B]

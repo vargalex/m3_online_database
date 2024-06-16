@@ -164,8 +164,12 @@ class navigator:
         
         resp_info = requests.get(f'{base_url}/api/m3/v3/item', params=params_info, cookies=cookies, headers=headers).json()
         hasSubtitle = resp_info['hasSubtitle']
+
+        headers_x = {
+            'user-agent': '',
+        }
         
-        check_m3u8 = requests.get(m3u8_url, headers=headers)
+        check_m3u8 = requests.get(m3u8_url, headers=headers_x)
         
         if 'content-length' in check_m3u8.headers:
             content_length = int(check_m3u8.headers['content-length'])

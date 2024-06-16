@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="plugin.video.m3_online_database" name="M3 Online (Adatbázis)" version="1.0.3" provider-name="heg, vargalex">
+<addon id="plugin.video.m3_online_database" name="M3 Online (Adatbázis)" version="1.0.4" provider-name="heg, vargalex">
     <requires>
         <import addon="script.module.requests" version="2.22.0"/>
         <import addon="xbmc.python" version="3.0.0"/>
@@ -14,6 +14,7 @@
         <language>hu</language>
         <platform>all</platform>
         <news>
+            1.0.4 - link javítása
             1.0.3 - Áttérés SQLite adatbázis használatára, lapozás a keresésben
             1.0.2 - Közvetlen CSV forrás használata json helyett
             1.0.1 - Lapozás megvalósítása
