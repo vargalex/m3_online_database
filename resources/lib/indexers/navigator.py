@@ -79,6 +79,8 @@ class navigator:
         self.base_path = translatePath(xbmcaddon.Addon().getAddonInfo('profile'))
         self.searchFileName = os.path.join(self.base_path, "search.history")
         self.pageSize = int(addon.getSetting("pageSize"))
+        if not os.path.exists(self.base_path):
+            os.mkdir(self.base_path)
         db.refresh_database(int(addon.getSetting("checkDatabase"))*60*60)
 
     def root(self):
